@@ -13,7 +13,7 @@ from lcb_runner.runner.base_runner import BaseRunner
 
 class OpenAIRunner(BaseRunner):
     client = OpenAI(
-        api_key=os.getenv("OPENAI_KEY"),
+        base_url="http://localhost:8001/v1"
     )
 
     def __init__(self, args, model):
@@ -29,12 +29,12 @@ class OpenAIRunner(BaseRunner):
             ), f"Model {args.model} is not a valid OpenAI Reasoning model as we require reasoning effort in model name."
             model, reasoning_effort = args.model.split("__")
             self.client_kwargs: dict[str | str] = {
-                "model": model,
+                "model": "Motif-Technologies/Motif-2.6B",
                 "reasoning_effort": reasoning_effort,
             }
         else:
             self.client_kwargs: dict[str | str] = {
-                "model": args.model,
+                "model": "Motif-Technologies/Motif-2.6B",
                 "temperature": args.temperature,
                 "max_tokens": args.max_tokens,
                 "top_p": args.top_p,
