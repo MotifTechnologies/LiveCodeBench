@@ -10,10 +10,16 @@ except ImportError as e:
 from lcb_runner.lm_styles import LMStyle
 from lcb_runner.runner.base_runner import BaseRunner
 
-
+SYSTEM_PROMPT = (
+    "You are a deep thinking AI, you may use extremely long chains of thought to deeply consider the problem and deliberate "
+    "with yourself via systematic reasoning processes to help come to a correct solution prior to answering. "
+    "You should enclose your thoughts and internal monologue inside <think> </think> tags, and then provide your solution or response to the problem."
+)
 class OpenAIRunner(BaseRunner):
     client = OpenAI(
-        base_url="http://localhost:8001/v1"
+        base_url="http://localhost:34885/v1",
+        api_key="sk-1234567",
+        timeout=None,
     )
 
     def __init__(self, args, model):
@@ -34,14 +40,14 @@ class OpenAIRunner(BaseRunner):
             }
         else:
             self.client_kwargs: dict[str | str] = {
-                "model": "Motif-Technologies/Motif-2.6B",
+                #"model": "Motif-Technologies/Motif-2.6B",
                 "temperature": args.temperature,
                 "max_tokens": args.max_tokens,
                 "top_p": args.top_p,
                 "frequency_penalty": 0,
                 "presence_penalty": 0,
                 "n": args.n,
-                "timeout": args.openai_timeout,
+                "timeout": None,
                 # "stop": args.stop, --> stop is only used for base models currently
             }
 
@@ -53,10 +59,32 @@ class OpenAIRunner(BaseRunner):
             return []
 
         try:
+            if prompt[0]["role"] == "system":
+                prompt[0]["content"] = SYSTEM_PROMPT
+            else:
+                prompt.insert(0, {"role": "system", "content": SYSTEM_PROMPT})
+            
             response = OpenAIRunner.client.chat.completions.create(
+                model=None,
                 messages=prompt,
                 **self.client_kwargs,
+                extra_body={
+                    "skip_special_tokens": False,
+                    "stop_token_ids": [219395, 219396, 219403, 219405],
+                    "chat_template_kwargs": {
+                        "enable_thinking": True # 또는 False
+                    },
+                }
             )
+            for c in response.choices:
+                whole_response = c.message.content
+                whole_response = whole_response.split("</think>")
+                if len(whole_response) > 1:
+                    whole_response = whole_response[1]
+                else:
+                    whole_response = ""
+                c.message.content = whole_response
+            return [c.message.content for c in response.choices]
         except (
             openai.APIError,
             openai.RateLimitError,
